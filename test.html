@@ -2,123 +2,111 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>自由拖曳遊戲實驗室</title>
+    <title>自定義遊戲棋盤</title>
     <style>
         body {
-            background-color: #2c3e50;
+            background-color: #0b0b0b;
             margin: 0;
-            overflow: hidden; /* 防止出現捲軸 */
+            overflow: hidden;
             width: 100vw;
             height: 100vh;
-            touch-action: none; /* 禁用瀏覽器預設觸控行為 */
+            touch-action: none;
         }
 
-        /* 這是可以拖曳的小物 */
+        /* 拖曳物件樣式 */
         .draggable {
-            width: 80px;
-            height: 80px;
-            position: absolute; /* 關鍵：必須是絕對定位 */
+            position: absolute;
             cursor: grab;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 50px;
-            user-select: none; /* 防止拖曳時選取到文字 */
-            transition: transform 0.1s; /* 增加一點點平滑感 */
-            -webkit-user-select: none; /* iOS 相容性 */
-            -webkit-touch-callout: none; /* iOS 禁用長按選單 */
-            border-radius: 10px; /* 增加視覺回饋 */
+            width: 80px; /* 你可以根據需要調整圖片大小 */
+            user-select: none;
+            -webkit-user-drag: none;
+            transition: transform 0.1s;
+            z-index: 10;
         }
 
         .draggable:active {
             cursor: grabbing;
-            transform: scale(1.1); /* 抓取時稍微放大 */
-            z-index: 1000; /* 確保抓起的東西在最上層 */
+            transform: scale(1.1);
+            z-index: 1000;
         }
 
-        /* 觸控時的視覺效果 */
-        .draggable.dragging {
-            transform: scale(1.15);
-            z-index: 1000;
-            opacity: 0.9;
+        /* 棋盤背景（可選） */
+        .board-bg {
+            position: fixed;
+            inset: 0;
+            background-image: radial-gradient(circle, #2c3e50 1px, transparent 1px);
+            background-size: 50px 50px; /* 點狀背景方便對齊感 */
+            z-index: -1;
         }
     </style>
 </head>
 <body>
 
-    <img src="https://115kkkken.github.io/moba/a_de_1.jpg" class="draggable" style="top: 100px; left: 100px; width: 80px;">
-    <div class="draggable" style="top: 100px; left: 250px;">♟️</div>
-    <div class="draggable" style="top: 250px; left: 100px;">💎</div>
-    <div class="draggable" style="top: 250px; left: 250px;">🔥</div>
+    <div class="board-bg"></div>
+
+    <div id="game-container">
+        <img src="moba/a_de_1.jpg" class="draggable" style="top: 100px; left: 100px;" draggable="false">
+    </div>
 
     <script>
-        const draggables = document.querySelectorAll('.draggable');
+        // --- 1. 數據定義 (效法你的範例) ---
+        // 這樣以後只要把圖片丟進 moba 資料夾，並在這裡增加 ID 即可
+        const myImages = [
+            { id: 'a_de_1', name: '末日炎魔', path: 'moba/a_de_1.jpg' },
+            { id: 'a_de_2', name: '地獄火重砲', path: 'moba/a_de_2.jpg' },
+            // 你可以持續增加...
+        ];
+
+        const container = document.getElementById('game-container');
+
+        // --- 2. 自動產生圖片物件 ---
+        myImages.forEach((imgData, index) => {
+            const img = document.createElement('img');
+            img.src = imgData.path;
+            img.className = 'draggable';
+            img.id = imgData.id;
+            img.style.left = (100 + index * 100) + 'px'; // 初始排開
+            img.style.top = '200px';
+            img.setAttribute('draggable', 'false'); // 禁用原生拖曳
+            container.appendChild(img);
+        });
+
+        // --- 3. 拖曳邏輯 (通用版) ---
         let activeElement = null;
         let offset = { x: 0, y: 0 };
 
-        // 初始化拖曳
-        function initDrag(e) {
-            activeElement = e.currentTarget;
-            activeElement.classList.add('dragging');
-            
-            // 取得觸發點的座標 (支援滑鼠和觸控)
-            const clientX = e.clientX !== undefined ? e.clientX : e.touches[0].clientX;
-            const clientY = e.clientY !== undefined ? e.clientY : e.touches[0].clientY;
-            
-            // 計算偏移量
-            offset.x = clientX - activeElement.offsetLeft;
-            offset.y = clientY - activeElement.offsetTop;
-        }
-
-        // 處理拖曳移動
-        function moveDrag(e) {
-            if (!activeElement) return;
-
-            // 防止預設行為（重要！在觸控時防止頁面滾動）
-            if (e.touches) {
+        function startDragging(e) {
+            if (e.target.classList.contains('draggable')) {
+                activeElement = e.target;
+                const clientX = e.clientX ?? e.touches[0].clientX;
+                const clientY = e.clientY ?? e.touches[0].clientY;
+                
+                offset.x = clientX - activeElement.offsetLeft;
+                offset.y = clientY - activeElement.offsetTop;
                 e.preventDefault();
             }
-
-            // 取得觸發點的座標
-            const clientX = e.clientX !== undefined ? e.clientX : e.touches[0].clientX;
-            const clientY = e.clientY !== undefined ? e.clientY : e.touches[0].clientY;
-
-            // 計算新位置
-            let newX = clientX - offset.x;
-            let newY = clientY - offset.y;
-
-            // 邊界限制 (可選，防止拖出螢幕)
-            // newX = Math.max(0, Math.min(newX, window.innerWidth - 80));
-            // newY = Math.max(0, Math.min(newY, window.innerHeight - 80));
-
-            activeElement.style.left = newX + 'px';
-            activeElement.style.top = newY + 'px';
         }
 
-        // 結束拖曳
-        function endDrag() {
-            if (activeElement) {
-                activeElement.classList.remove('dragging');
-                activeElement = null;
-            }
+        function moveDragging(e) {
+            if (!activeElement) return;
+            const clientX = e.clientX ?? e.touches[0].clientX;
+            const clientY = e.clientY ?? e.touches[0].clientY;
+
+            activeElement.style.left = (clientX - offset.x) + 'px';
+            activeElement.style.top = (clientY - offset.y) + 'px';
         }
 
-        // 為每個可拖曳元素添加事件監聽
-        draggables.forEach(el => {
-            // 滑鼠事件
-            el.addEventListener('mousedown', initDrag);
-            
-            // 觸控事件
-            el.addEventListener('touchstart', initDrag);
-        });
+        function stopDragging() {
+            activeElement = null;
+        }
 
-        // 全域事件監聽器 (必須在 document 上)
-        document.addEventListener('mousemove', moveDrag);
-        document.addEventListener('touchmove', moveDrag, { passive: false });
-
-        document.addEventListener('mouseup', endDrag);
-        document.addEventListener('touchend', endDrag);
-        document.addEventListener('touchcancel', endDrag); // 觸控被中斷時
+        // 綁定事件
+        document.addEventListener('mousedown', startDragging);
+        document.addEventListener('touchstart', startDragging, { passive: false });
+        document.addEventListener('mousemove', moveDragging);
+        document.addEventListener('touchmove', moveDragging, { passive: false });
+        document.addEventListener('mouseup', stopDragging);
+        document.addEventListener('touchend', stopDragging);
     </script>
 </body>
 </html>
