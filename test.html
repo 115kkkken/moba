@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>自由拖曳遊戲實驗室</title>
+    <style>
+        body {
+            background-color: #2c3e50;
+            margin: 0;
+            overflow: hidden; /* 防止出現捲軸 */
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 這是可以拖曳的小物 */
+        .draggable {
+            width: 80px;
+            height: 80px;
+            position: absolute; /* 關鍵：必須是絕對定位 */
+            cursor: grab;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 50px;
+            user-select: none; /* 防止拖曳時選取到文字 */
+            transition: transform 0.1s; /* 增加一點點平滑感 */
+        }
+
+        .draggable:active {
+            cursor: grabbing;
+            transform: scale(1.1); /* 抓取時稍微放大 */
+            z-index: 1000; /* 確保抓起的東西在最上層 */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="draggable" style="top: 100px; left: 100px;">🚩</div>
+    <div class="draggable" style="top: 100px; left: 250px;">♟️</div>
+    <div class="draggable" style="top: 250px; left: 100px;">💎</div>
+    <div class="draggable" style="top: 250px; left: 250px;">🔥</div>
+
+    <script>
+        const draggables = document.querySelectorAll('.draggable');
+        let activeElement = null;
+        let offset = { x: 0, y: 0 };
+
+        draggables.forEach(el => {
+            el.addEventListener('mousedown', (e) => {
+                activeElement = el;
+                // 計算滑鼠點擊位置與元件左上角的距離 (Offset)
+                // 這樣拖曳時滑鼠才會停在原本點擊的那一點，不會跳掉
+                offset.x = e.clientX - el.offsetLeft;
+                offset.y = e.clientY - el.offsetTop;
+            });
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!activeElement) return;
+
+            // 更新元件位置 = 目前滑鼠座標 - 初始偏移量
+            let newX = e.clientX - offset.x;
+            let newY = e.clientY - offset.y;
+
+            activeElement.style.left = newX + 'px';
+            activeElement.style.top = newY + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            activeElement = null;
+        });
+
+        // 額外支援手機觸控 (Touch Events)
+        document.addEventListener('touchmove', (e) => {
+            if (!activeElement) return;
+            let touch = e.touches[0];
+            activeElement.style.left = (touch.clientX - offset.x) + 'px';
+            activeElement.style.top = (touch.clientY - offset.y) + 'px';
+        }, { passive: false });
+    </script>
+</body>
+</html>
