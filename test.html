@@ -10,6 +10,7 @@
             overflow: hidden; /* 防止出現捲軸 */
             width: 100vw;
             height: 100vh;
+            touch-action: none; /* 禁用瀏覽器預設觸控行為 */
         }
 
         /* 這是可以拖曳的小物 */
@@ -24,12 +25,22 @@
             font-size: 50px;
             user-select: none; /* 防止拖曳時選取到文字 */
             transition: transform 0.1s; /* 增加一點點平滑感 */
+            -webkit-user-select: none; /* iOS 相容性 */
+            -webkit-touch-callout: none; /* iOS 禁用長按選單 */
+            border-radius: 10px; /* 增加視覺回饋 */
         }
 
         .draggable:active {
             cursor: grabbing;
             transform: scale(1.1); /* 抓取時稍微放大 */
             z-index: 1000; /* 確保抓起的東西在最上層 */
+        }
+
+        /* 觸控時的視覺效果 */
+        .draggable.dragging {
+            transform: scale(1.15);
+            z-index: 1000;
+            opacity: 0.9;
         }
     </style>
 </head>
@@ -45,38 +56,69 @@
         let activeElement = null;
         let offset = { x: 0, y: 0 };
 
-        draggables.forEach(el => {
-            el.addEventListener('mousedown', (e) => {
-                activeElement = el;
-                // 計算滑鼠點擊位置與元件左上角的距離 (Offset)
-                // 這樣拖曳時滑鼠才會停在原本點擊的那一點，不會跳掉
-                offset.x = e.clientX - el.offsetLeft;
-                offset.y = e.clientY - el.offsetTop;
-            });
-        });
+        // 初始化拖曳
+        function initDrag(e) {
+            activeElement = e.currentTarget;
+            activeElement.classList.add('dragging');
+            
+            // 取得觸發點的座標 (支援滑鼠和觸控)
+            const clientX = e.clientX !== undefined ? e.clientX : e.touches[0].clientX;
+            const clientY = e.clientY !== undefined ? e.clientY : e.touches[0].clientY;
+            
+            // 計算偏移量
+            offset.x = clientX - activeElement.offsetLeft;
+            offset.y = clientY - activeElement.offsetTop;
+        }
 
-        document.addEventListener('mousemove', (e) => {
+        // 處理拖曳移動
+        function moveDrag(e) {
             if (!activeElement) return;
 
-            // 更新元件位置 = 目前滑鼠座標 - 初始偏移量
-            let newX = e.clientX - offset.x;
-            let newY = e.clientY - offset.y;
+            // 防止預設行為（重要！在觸控時防止頁面滾動）
+            if (e.touches) {
+                e.preventDefault();
+            }
+
+            // 取得觸發點的座標
+            const clientX = e.clientX !== undefined ? e.clientX : e.touches[0].clientX;
+            const clientY = e.clientY !== undefined ? e.clientY : e.touches[0].clientY;
+
+            // 計算新位置
+            let newX = clientX - offset.x;
+            let newY = clientY - offset.y;
+
+            // 邊界限制 (可選，防止拖出螢幕)
+            // newX = Math.max(0, Math.min(newX, window.innerWidth - 80));
+            // newY = Math.max(0, Math.min(newY, window.innerHeight - 80));
 
             activeElement.style.left = newX + 'px';
             activeElement.style.top = newY + 'px';
+        }
+
+        // 結束拖曳
+        function endDrag() {
+            if (activeElement) {
+                activeElement.classList.remove('dragging');
+                activeElement = null;
+            }
+        }
+
+        // 為每個可拖曳元素添加事件監聽
+        draggables.forEach(el => {
+            // 滑鼠事件
+            el.addEventListener('mousedown', initDrag);
+            
+            // 觸控事件
+            el.addEventListener('touchstart', initDrag);
         });
 
-        document.addEventListener('mouseup', () => {
-            activeElement = null;
-        });
+        // 全域事件監聽器 (必須在 document 上)
+        document.addEventListener('mousemove', moveDrag);
+        document.addEventListener('touchmove', moveDrag, { passive: false });
 
-        // 額外支援手機觸控 (Touch Events)
-        document.addEventListener('touchmove', (e) => {
-            if (!activeElement) return;
-            let touch = e.touches[0];
-            activeElement.style.left = (touch.clientX - offset.x) + 'px';
-            activeElement.style.top = (touch.clientY - offset.y) + 'px';
-        }, { passive: false });
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+        document.addEventListener('touchcancel', endDrag); // 觸控被中斷時
     </script>
 </body>
 </html>
